@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getLead, updateLeadStatus, updateLeadComment, getStatusHistory } from '../lib/supabase'
+import { getLead, updateLeadStatus, updateLeadComment, getStatusHistory, deleteLead } from '../lib/supabase'
 import { notifyStatusChange } from '../lib/api'
 import { STATUSES, STATUS_COLORS, fmtMoney, getDisplayName } from '../lib/config'
 import { getTelegramUser, haptic } from '../lib/telegram'
@@ -15,7 +15,8 @@ export default function LeadDetail() {
   const [lead, setLead]       = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showStatus, setShowStatus] = useState(false)
+  const [showStatus, setShowStatus]   = useState(false)
+  const [showDelete, setShowDelete]   = useState(false)
   const [editComment, setEditComment] = useState(false)
   const [commentVal, setCommentVal]   = useState('')
   const [saving, setSaving] = useState(false)
@@ -54,6 +55,21 @@ export default function LeadDetail() {
     }
   }
 
+  async function handleDelete() {
+    setSaving(true)
+    try {
+      await deleteLead(id)
+      haptic('success')
+      navigate('/leads')
+    } catch (e) {
+      console.error(e)
+      haptic('error')
+    } finally {
+      setSaving(false)
+      setShowDelete(false)
+    }
+  }
+
   async function saveComment() {
     setSaving(true)
     try {
@@ -89,24 +105,29 @@ export default function LeadDetail() {
         <StatusBadge status={lead.status} size="lg" />
       </div>
 
-      {/* Change status button */}
-      <button
-        onClick={() => setShowStatus(true)}
-        style={{
-          width:        '100%',
-          padding:      '13px',
-          borderRadius: '12px',
-          border:       '1px solid #6366f1',
-          background:   '#1e1e3a',
-          color:        '#a5b4fc',
-          fontSize:     '14px',
-          fontWeight:   600,
-          cursor:       'pointer',
-          marginBottom: '20px',
-        }}
-      >
-        🔄 Изменить статус
-      </button>
+      {/* Action buttons */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <button
+          onClick={() => setShowStatus(true)}
+          style={{
+            flex: 1, padding: '13px', borderRadius: '12px',
+            border: '1px solid #6366f1', background: '#1e1e3a',
+            color: '#a5b4fc', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          🔄 Изменить статус
+        </button>
+        <button
+          onClick={() => setShowDelete(true)}
+          style={{
+            padding: '13px 16px', borderRadius: '12px',
+            border: '1px solid #ef4444', background: '#2d0f0f',
+            color: '#f87171', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          🗑
+        </button>
+      </div>
 
       {/* Info card */}
       <Card title="Информация о лиде">
@@ -217,6 +238,28 @@ export default function LeadDetail() {
               </button>
             )
           })}
+        </div>
+      </Modal>
+
+      {/* Delete Confirm Modal */}
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Удалить лида?">
+        <p style={{ color: '#9ca3af', fontSize: '14px', lineHeight: 1.5, marginBottom: '20px' }}>
+          <b style={{ color: '#f1f1f1' }}>{lead.full_name}</b> будет удалён из базы безвозвратно.
+        </p>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => setShowDelete(false)}
+            style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#252535', color: '#9ca3af', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Отмена
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={saving}
+            style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: saving ? '#5a1a1a' : '#ef4444', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
+          >
+            {saving ? 'Удаляем...' : '🗑 Удалить'}
+          </button>
         </div>
       </Modal>
     </div>

@@ -90,6 +90,14 @@ export async function updateLeadComment(id, comment) {
   await PATCH('leads', { id: `eq.${id}` }, { comment })
 }
 
+export async function deleteLead(id) {
+  const r = await fetch(`${SB_URL}/leads?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: H,
+  })
+  if (!r.ok) throw new Error(await r.text())
+}
+
 export async function getStatusHistory(leadId) {
   return GET('status_history', {
     select: '*', lead_id: `eq.${leadId}`, order: 'changed_at.desc',
