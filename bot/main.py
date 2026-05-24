@@ -27,13 +27,18 @@ from supabase import create_client, Client
 load_dotenv()
 
 # ─── Config ────────────────────────────────────────────────────────────────────
-BOT_TOKEN       = os.environ["BOT_TOKEN"]
+BOT_TOKEN       = os.environ.get("BOT_TOKEN", "")
 WEBHOOK_SECRET  = os.environ.get("WEBHOOK_SECRET", "secret")
-SUPABASE_URL    = os.environ["SUPABASE_URL"]
-SUPABASE_KEY    = os.environ["SUPABASE_SERVICE_KEY"]
+SUPABASE_URL    = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY    = os.environ.get("SUPABASE_SERVICE_KEY", "")
 BOT_WEBHOOK_URL = os.environ.get("BOT_WEBHOOK_URL", "")
 MINI_APP_URL    = os.environ.get("MINI_APP_URL", "https://example.com")
 NOTIFY_SECRET   = os.environ.get("NOTIFY_SECRET", "notify_secret")
+
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN environment variable is not set")
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("SUPABASE_URL or SUPABASE_SERVICE_KEY environment variable is not set")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,7 +47,12 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ─── Supabase client ───────────────────────────────────────────────────────────
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    log.info("Supabase client initialized")
+except Exception as e:
+    log.error(f"Failed to init Supabase: {e}")
+    raise
 
 # ─── Aiogram setup ─────────────────────────────────────────────────────────────
 bot = Bot(token=BOT_TOKEN)
