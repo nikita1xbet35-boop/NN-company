@@ -3,8 +3,8 @@
  * Non-blocking — we don't block lead creation on notification failure.
  */
 
-const BOT_URL      = import.meta.env.VITE_BOT_URL
-const NOTIFY_SECRET = import.meta.env.VITE_NOTIFY_SECRET
+const BOT_URL       = import.meta.env.VITE_BOT_URL || 'https://nn-company-production.up.railway.app'
+const NOTIFY_SECRET = import.meta.env.VITE_NOTIFY_SECRET || 'nn_notify_secret_x9k2p7m4'
 
 export async function notifyNewLead({ full_name, offer, revenue, payout, added_by }) {
   if (!BOT_URL) return
