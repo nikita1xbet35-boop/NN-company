@@ -50,20 +50,22 @@ export default function Dashboard() {
 
   useEffect(() => { load() }, [load])
 
-  // Compute stats
-  const totalRevenue = data.reduce((s, r) => s + Number(r.revenue || 0), 0)
-  const totalPayout  = data.reduce((s, r) => s + Number(r.payout  || 0), 0)
+  // Отказы не считаются в финансах — только в количестве по статусам
+  const active = data.filter(r => r.status !== 'Отказ')
+
+  const totalRevenue = active.reduce((s, r) => s + Number(r.revenue || 0), 0)
+  const totalPayout  = active.reduce((s, r) => s + Number(r.payout  || 0), 0)
   const netProfit    = totalRevenue - totalPayout
 
-  // By offer
+  // By offer — только активные (без Отказ)
   const byOffer = {}
-  data.forEach(r => {
+  active.forEach(r => {
     if (!byOffer[r.offer]) byOffer[r.offer] = { revenue: 0, count: 0 }
     byOffer[r.offer].revenue += Number(r.revenue || 0)
     byOffer[r.offer].count   += 1
   })
 
-  // By status
+  // By status — все лиды включая Отказ
   const byStatus = {}
   STATUSES.forEach(s => { byStatus[s] = 0 })
   data.forEach(r => { if (byStatus[r.status] !== undefined) byStatus[r.status]++ })
@@ -132,7 +134,7 @@ export default function Dashboard() {
 
           {/* Leads count */}
           <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Лидов: {data.length}
+            Лидов: {data.length} {data.length !== active.length && `(${data.length - active.length} отказ${data.length - active.length > 1 ? 'ов' : ''})`}
           </div>
 
           {/* By status */}
