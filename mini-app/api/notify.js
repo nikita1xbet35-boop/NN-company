@@ -27,7 +27,7 @@ async function getUserIds() {
 }
 
 async function broadcast(text, reply_markup) {
-  const ids = await getUserIds()
+  const ids  = await getUserIds()
   const body = { parse_mode: 'HTML', text, ...(reply_markup ? { reply_markup } : {}) }
   await Promise.allSettled(ids.map(id =>
     fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -39,7 +39,7 @@ async function broadcast(text, reply_markup) {
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Origin',  '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Notify-Secret')
 
@@ -49,10 +49,11 @@ module.exports = async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden' })
 
   try {
-    const { type, new_lead, status_change } = req.body
+    const { type } = req.body
 
-    if (type === 'new_lead' && new_lead) {
-      const { full_name, offer, revenue, payout, added_by, lead_id } = new_lead
+    // ── Новый лид ────────────────────────────────────────────────────────────
+    if (type === 'new_lead' && req.body.new_lead) {
+      const { full_name, offer, revenue, payout, added_by, lead_id } = req.body.new_lead
       await broadcast(
         `➕ <b>Новый лид добавлен</b>\n` +
         `👤 ${full_name}\n` +
@@ -62,8 +63,10 @@ module.exports = async function handler(req, res) {
         `👥 Добавил: ${added_by}`,
         leadButton(lead_id)
       )
-    } else if (type === 'status_change' && status_change) {
-      const { full_name, offer, new_status, changed_by, lead_id } = status_change
+
+    // ── Смена статуса ────────────────────────────────────────────────────────
+    } else if (type === 'status_change' && req.body.status_change) {
+      const { full_name, offer, new_status, changed_by, lead_id } = req.body.status_change
       await broadcast(
         `🔄 <b>Статус изменён</b>\n` +
         `👤 ${full_name}\n` +
@@ -72,6 +75,38 @@ module.exports = async function handler(req, res) {
         `👥 Изменил: ${changed_by}`,
         leadButton(lead_id)
       )
+
+    // ── Лид отредактирован ───────────────────────────────────────────────────
+    } else if (type === 'lead_edited' && req.body.lead_edited) {
+      const { full_name, offer, revenue, payout, changed_by, lead_id } = req.body.lead_edited
+      await broadcast(
+        `✏️ <b>Лид изменён</b>\n` +
+        `👤 ${full_name}\n` +
+        `📋 Оффер: ${offer}\n` +
+        `💰 ${fmtMoney(revenue)} / 💸 ${fmtMoney(payout)}\n` +
+        `👥 Изменил: ${changed_by}`,
+        leadButton(lead_id)
+      )
+
+    // ── Лид удалён ───────────────────────────────────────────────────────────
+    } else if (type === 'lead_deleted' && req.body.lead_deleted) {
+      const { full_name, deleted_by } = req.body.lead_deleted
+      await broadcast(
+        `🗑 <b>Лид удалён из базы</b>\n` +
+        `👤 ${full_name}\n` +
+        `👥 Удалил: ${deleted_by}`
+      )
+
+    // ── Комментарий обновлён ─────────────────────────────────────────────────
+    } else if (type === 'comment_changed' && req.body.comment_changed) {
+      const { full_name, changed_by, lead_id } = req.body.comment_changed
+      await broadcast(
+        `💬 <b>Комментарий обновлён</b>\n` +
+        `👤 ${full_name}\n` +
+        `👥 Изменил: ${changed_by}`,
+        leadButton(lead_id)
+      )
+
     } else {
       return res.status(400).json({ error: 'Unknown type' })
     }

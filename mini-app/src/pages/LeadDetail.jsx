@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getLead, updateLeadStatus, updateLeadComment, updateLead, getStatusHistory, deleteLead } from '../lib/supabase'
-import { notifyStatusChange } from '../lib/api'
+import { notifyStatusChange, notifyLeadEdited, notifyLeadDeleted, notifyCommentChanged } from '../lib/api'
 import { STATUSES, STATUS_COLORS, OFFERS, fmtMoney, getDisplayName } from '../lib/config'
 import { getTelegramUser, haptic } from '../lib/telegram'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
+
+function getUser() {
+  const u = getTelegramUser()
+  return u ? getDisplayName(u.username) : 'Неизвестно'
+}
 
 export default function LeadDetail() {
   const { id } = useParams()
@@ -22,8 +27,8 @@ export default function LeadDetail() {
   const [commentVal, setCommentVal]   = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Edit form state
-  const [editForm, setEditForm] = useState({})
+  // Форма редактирования
+  const [editForm, setEditForm]     = useState({})
   const [editErrors, setEditErrors] = useState({})
 
   async function load() {
@@ -40,6 +45,8 @@ export default function LeadDetail() {
   }
 
   useEffect(() => { load() }, [id])
+
+  // ── Открыть редактирование ─────────────────────────────────────────────────
 
   function openEdit() {
     setEditForm({
@@ -74,22 +81,28 @@ export default function LeadDetail() {
 
   async function saveEdit() {
     const errs = validateEdit()
-    if (Object.keys(errs).length > 0) {
-      setEditErrors(errs)
-      haptic('error')
-      return
-    }
+    if (Object.keys(errs).length > 0) { setEditErrors(errs); haptic('error'); return }
     setSaving(true)
     try {
+      const revenue = parseFloat(editForm.revenue) || 0
+      const payout  = parseFloat(editForm.payout)  || 0
       await updateLead(id, {
         full_name:   editForm.full_name.trim(),
         phone:       editForm.phone.trim(),
         contact:     editForm.contact.trim(),
         offer:       editForm.offer,
-        revenue:     parseFloat(editForm.revenue)     || 0,
-        payout:      parseFloat(editForm.payout)      || 0,
+        revenue,
+        payout,
         referred_by: editForm.referred_by.trim() || null,
         comment:     editForm.comment.trim()     || null,
+      })
+      notifyLeadEdited({
+        full_name:  editForm.full_name.trim(),
+        offer:      editForm.offer,
+        revenue,
+        payout,
+        changed_by: getUser(),
+        lead_id:    id,
       })
       haptic('success')
       setShowEdit(false)
@@ -103,20 +116,15 @@ export default function LeadDetail() {
     }
   }
 
+  // ── Смена статуса ──────────────────────────────────────────────────────────
+
   async function changeStatus(newStatus) {
     if (newStatus === lead.status) { setShowStatus(false); return }
     setSaving(true)
     try {
-      const tgUser    = getTelegramUser()
-      const changedBy = tgUser ? getDisplayName(tgUser.username) : 'Неизвестно'
+      const changedBy = getUser()
       await updateLeadStatus(id, newStatus, changedBy, lead.status)
-      notifyStatusChange({
-        full_name:  lead.full_name,
-        offer:      lead.offer,
-        new_status: newStatus,
-        changed_by: changedBy,
-        lead_id:    id,
-      })
+      notifyStatusChange({ full_name: lead.full_name, offer: lead.offer, new_status: newStatus, changed_by: changedBy, lead_id: id })
       haptic('success')
       await load()
     } catch (e) {
@@ -128,10 +136,15 @@ export default function LeadDetail() {
     }
   }
 
+  // ── Удаление ───────────────────────────────────────────────────────────────
+
   async function handleDelete() {
     setSaving(true)
     try {
+      const deletedBy  = getUser()
+      const savedName  = lead.full_name
       await deleteLead(id)
+      notifyLeadDeleted({ full_name: savedName, deleted_by: deletedBy })
       haptic('success')
       navigate('/leads')
     } catch (e) {
@@ -143,11 +156,14 @@ export default function LeadDetail() {
     }
   }
 
+  // ── Сохранить комментарий ─────────────────────────────────────────────────
+
   async function saveComment() {
     setSaving(true)
     try {
       await updateLeadComment(id, commentVal)
       setLead(l => ({ ...l, comment: commentVal }))
+      notifyCommentChanged({ full_name: lead.full_name, changed_by: getUser(), lead_id: id })
       haptic('success')
       setEditComment(false)
     } catch (e) {
@@ -162,7 +178,8 @@ export default function LeadDetail() {
 
   return (
     <div style={{ padding: '16px', paddingBottom: '40px' }}>
-      {/* Back button */}
+
+      {/* Назад */}
       <button
         onClick={() => navigate(-1)}
         style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '15px', cursor: 'pointer', padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -170,7 +187,7 @@ export default function LeadDetail() {
         ← Назад
       </button>
 
-      {/* Name & Status */}
+      {/* Имя и статус */}
       <div style={{ marginBottom: '20px' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#f1f1f1', margin: '0 0 8px' }}>
           {lead.full_name}
@@ -178,54 +195,42 @@ export default function LeadDetail() {
         <StatusBadge status={lead.status} size="lg" />
       </div>
 
-      {/* Action buttons */}
+      {/* Кнопки действий */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
         <button
           onClick={() => setShowStatus(true)}
-          style={{
-            flex: 1, padding: '13px', borderRadius: '12px',
-            border: '1px solid #6366f1', background: '#1e1e3a',
-            color: '#a5b4fc', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-          }}
+          style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid #6366f1', background: '#1e1e3a', color: '#a5b4fc', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
         >
           🔄 Статус
         </button>
         <button
           onClick={openEdit}
-          style={{
-            flex: 1, padding: '13px', borderRadius: '12px',
-            border: '1px solid #374151', background: '#1a1a24',
-            color: '#d1d5db', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-          }}
+          style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid #374151', background: '#1a1a24', color: '#d1d5db', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
         >
           ✏️ Изменить
         </button>
         <button
           onClick={() => setShowDelete(true)}
-          style={{
-            padding: '13px 16px', borderRadius: '12px',
-            border: '1px solid #ef4444', background: '#2d0f0f',
-            color: '#f87171', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-          }}
+          style={{ padding: '13px 16px', borderRadius: '12px', border: '1px solid #ef4444', background: '#2d0f0f', color: '#f87171', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
         >
           🗑
         </button>
       </div>
 
-      {/* Info card */}
+      {/* Информация */}
       <Card title="Информация о лиде">
-        <Row icon="📱" label="Телефон"   value={lead.phone} />
-        <Row icon="🔗" label="Контакт"   value={lead.contact} link />
-        <Row icon="📋" label="Оффер"     value={lead.offer} />
-        <Row icon="💰" label="Доход"     value={fmtMoney(lead.revenue)} color="#10b981" />
-        <Row icon="💸" label="Выплата"   value={fmtMoney(lead.payout)}  color="#f59e0b" />
-        <Row icon="📈" label="Прибыль"   value={fmtMoney(lead.revenue - lead.payout)} color={lead.revenue - lead.payout >= 0 ? '#6366f1' : '#ef4444'} />
+        <Row icon="📱" label="Телефон"    value={lead.phone} />
+        <Row icon="🔗" label="Контакт"    value={lead.contact} link />
+        <Row icon="📋" label="Оффер"      value={lead.offer} />
+        <Row icon="💰" label="Доход"      value={fmtMoney(lead.revenue)} color="#10b981" />
+        <Row icon="💸" label="Выплата"    value={fmtMoney(lead.payout)}  color="#f59e0b" />
+        <Row icon="📈" label="Прибыль"    value={fmtMoney(lead.revenue - lead.payout)} color={lead.revenue - lead.payout >= 0 ? '#6366f1' : '#ef4444'} />
         {lead.referred_by && <Row icon="👥" label="Кто привёл" value={lead.referred_by} />}
-        <Row icon="🧑" label="Добавил"  value={lead.added_by} />
-        <Row icon="📅" label="Создан"   value={format(new Date(lead.created_at), 'd MMMM yyyy, HH:mm', { locale: ru })} />
+        <Row icon="🧑" label="Добавил"   value={lead.added_by} />
+        <Row icon="📅" label="Создан"    value={format(new Date(lead.created_at), 'd MMMM yyyy, HH:mm', { locale: ru })} />
       </Card>
 
-      {/* Comment */}
+      {/* Комментарий */}
       <Card title="Комментарий">
         {editComment ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -234,12 +239,7 @@ export default function LeadDetail() {
               onChange={e => setCommentVal(e.target.value)}
               rows={4}
               autoFocus
-              style={{
-                width: '100%', padding: '12px', borderRadius: '10px',
-                border: '1px solid #252535', background: '#252535',
-                color: '#f1f1f1', fontSize: '14px', resize: 'vertical',
-                fontFamily: 'inherit', boxSizing: 'border-box',
-              }}
+              style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #252535', background: '#252535', color: '#f1f1f1', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setEditComment(false)} style={{ ...smallBtn, background: '#252535', color: '#9ca3af' }}>
@@ -262,7 +262,7 @@ export default function LeadDetail() {
         )}
       </Card>
 
-      {/* Status history */}
+      {/* История статусов */}
       <Card title={`История статусов (${history.length})`}>
         {history.length === 0 ? (
           <p style={{ color: '#4b5563', fontSize: '14px' }}>Нет изменений</p>
@@ -276,9 +276,7 @@ export default function LeadDetail() {
                     <span style={{ color: '#4b5563', fontSize: '12px' }}>→</span>
                     <StatusBadge status={h.new_status} />
                   </div>
-                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                    👤 {h.changed_by}
-                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>👤 {h.changed_by}</div>
                 </div>
                 <div style={{ fontSize: '11px', color: '#4b5563', textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
                   {format(new Date(h.changed_at), 'd MMM, HH:mm', { locale: ru })}
@@ -289,7 +287,7 @@ export default function LeadDetail() {
         )}
       </Card>
 
-      {/* Change Status Modal */}
+      {/* Модалка — смена статуса */}
       <Modal open={showStatus} onClose={() => setShowStatus(false)} title="Выберите статус">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {STATUSES.map(s => {
@@ -301,18 +299,12 @@ export default function LeadDetail() {
                 onClick={() => changeStatus(s)}
                 disabled={saving}
                 style={{
-                  padding:      '14px 16px',
-                  borderRadius: '12px',
-                  border:       current ? `2px solid ${colors.dot}` : '2px solid transparent',
-                  background:   current ? colors.bg : '#252535',
-                  color:        colors.text,
-                  fontSize:     '15px',
-                  fontWeight:   600,
-                  cursor:       saving ? 'not-allowed' : 'pointer',
-                  textAlign:    'left',
-                  display:      'flex',
-                  alignItems:   'center',
-                  gap:          '10px',
+                  padding: '14px 16px', borderRadius: '12px',
+                  border:  current ? `2px solid ${colors.dot}` : '2px solid transparent',
+                  background: current ? colors.bg : '#252535',
+                  color: colors.text, fontSize: '15px', fontWeight: 600,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px',
                 }}
               >
                 <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: colors.dot }} />
@@ -324,122 +316,67 @@ export default function LeadDetail() {
         </div>
       </Modal>
 
-      {/* Edit Lead Modal */}
+      {/* Модалка — редактирование лида */}
       <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Редактировать лида">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-          <EditField label="ФИО *" error={editErrors.full_name}>
-            <input
-              type="text"
-              value={editForm.full_name || ''}
-              onChange={e => setEditField('full_name', e.target.value)}
-              style={eInput(editErrors.full_name)}
-            />
-          </EditField>
+          <EField label="ФИО *" error={editErrors.full_name}>
+            <input type="text" value={editForm.full_name || ''} onChange={e => setEditField('full_name', e.target.value)} style={eInput(editErrors.full_name)} />
+          </EField>
 
-          <EditField label="Телефон *" error={editErrors.phone}>
-            <input
-              type="tel"
-              value={editForm.phone || ''}
-              onChange={e => setEditField('phone', e.target.value)}
-              style={eInput(editErrors.phone)}
-            />
-          </EditField>
+          <EField label="Телефон *" error={editErrors.phone}>
+            <input type="tel" value={editForm.phone || ''} onChange={e => setEditField('phone', e.target.value)} style={eInput(editErrors.phone)} />
+          </EField>
 
-          <EditField label="Контакт *" error={editErrors.contact}>
-            <input
-              type="text"
-              value={editForm.contact || ''}
-              onChange={e => setEditField('contact', e.target.value)}
-              style={eInput(editErrors.contact)}
-            />
-          </EditField>
+          <EField label="Контакт *" error={editErrors.contact}>
+            <input type="text" value={editForm.contact || ''} onChange={e => setEditField('contact', e.target.value)} style={eInput(editErrors.contact)} />
+          </EField>
 
-          <EditField label="Оффер *" error={editErrors.offer}>
-            <select
-              value={editForm.offer || ''}
-              onChange={e => setEditField('offer', e.target.value)}
-              style={eInput(editErrors.offer)}
-            >
+          <EField label="Оффер *" error={editErrors.offer}>
+            <select value={editForm.offer || ''} onChange={e => setEditField('offer', e.target.value)} style={eInput(editErrors.offer)}>
               <option value="">Выберите оффер...</option>
               {OFFERS.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
-          </EditField>
+          </EField>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <EditField label="Доход ₽ *" error={editErrors.revenue}>
-              <input
-                type="number"
-                value={editForm.revenue || ''}
-                onChange={e => setEditField('revenue', e.target.value)}
-                min="0"
-                style={eInput(editErrors.revenue)}
-              />
-            </EditField>
-            <EditField label="Выплата ₽ *" error={editErrors.payout}>
-              <input
-                type="number"
-                value={editForm.payout || ''}
-                onChange={e => setEditField('payout', e.target.value)}
-                min="0"
-                style={eInput(editErrors.payout)}
-              />
-            </EditField>
+            <EField label="Доход ₽ *" error={editErrors.revenue}>
+              <input type="number" value={editForm.revenue || ''} onChange={e => setEditField('revenue', e.target.value)} min="0" style={eInput(editErrors.revenue)} />
+            </EField>
+            <EField label="Выплата ₽ *" error={editErrors.payout}>
+              <input type="number" value={editForm.payout || ''} onChange={e => setEditField('payout', e.target.value)} min="0" style={eInput(editErrors.payout)} />
+            </EField>
           </div>
 
-          <EditField label="Кто привёл">
-            <input
-              type="text"
-              value={editForm.referred_by || ''}
-              onChange={e => setEditField('referred_by', e.target.value)}
-              style={eInput()}
-            />
-          </EditField>
+          <EField label="Кто привёл">
+            <input type="text" value={editForm.referred_by || ''} onChange={e => setEditField('referred_by', e.target.value)} style={eInput()} />
+          </EField>
 
-          <EditField label="Комментарий">
-            <textarea
-              value={editForm.comment || ''}
-              onChange={e => setEditField('comment', e.target.value)}
-              rows={3}
-              style={{ ...eInput(), resize: 'vertical', fontFamily: 'inherit' }}
-            />
-          </EditField>
+          <EField label="Комментарий">
+            <textarea value={editForm.comment || ''} onChange={e => setEditField('comment', e.target.value)} rows={3} style={{ ...eInput(), resize: 'vertical', fontFamily: 'inherit' }} />
+          </EField>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-            <button
-              onClick={() => setShowEdit(false)}
-              style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#252535', color: '#9ca3af', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
-            >
+            <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#252535', color: '#9ca3af', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}>
               Отмена
             </button>
-            <button
-              onClick={saveEdit}
-              disabled={saving}
-              style={{ flex: 2, padding: '14px', borderRadius: '12px', border: 'none', background: saving ? '#3d3d6b' : '#6366f1', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
-            >
+            <button onClick={saveEdit} disabled={saving} style={{ flex: 2, padding: '14px', borderRadius: '12px', border: 'none', background: saving ? '#3d3d6b' : '#6366f1', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
               {saving ? 'Сохраняем...' : '✅ Сохранить'}
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Delete Confirm Modal */}
+      {/* Модалка — удаление */}
       <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Удалить лида?">
         <p style={{ color: '#9ca3af', fontSize: '14px', lineHeight: 1.5, marginBottom: '20px' }}>
           <b style={{ color: '#f1f1f1' }}>{lead.full_name}</b> будет удалён из базы безвозвратно.
         </p>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={() => setShowDelete(false)}
-            style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#252535', color: '#9ca3af', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={() => setShowDelete(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#252535', color: '#9ca3af', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}>
             Отмена
           </button>
-          <button
-            onClick={handleDelete}
-            disabled={saving}
-            style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: saving ? '#5a1a1a' : '#ef4444', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
-          >
+          <button onClick={handleDelete} disabled={saving} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: saving ? '#5a1a1a' : '#ef4444', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? 'Удаляем...' : '🗑 Удалить'}
           </button>
         </div>
@@ -447,6 +384,8 @@ export default function LeadDetail() {
     </div>
   )
 }
+
+// ── Вспомогательные компоненты ────────────────────────────────────────────────
 
 function Card({ title, children }) {
   return (
@@ -464,7 +403,8 @@ function Row({ icon, label, value, color, link }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid #1e1e2e' }}>
       <span style={{ fontSize: '13px', color: '#6b7280' }}>{icon} {label}</span>
       {link ? (
-        <a href={value.startsWith('http') ? value : `https://t.me/${value.replace('@', '')}`} target="_blank" rel="noreferrer"
+        <a href={value.startsWith('http') ? value : `https://t.me/${value.replace('@', '')}`}
+          target="_blank" rel="noreferrer"
           style={{ fontSize: '13px', color: '#6366f1', textDecoration: 'none', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {value}
         </a>
@@ -477,7 +417,7 @@ function Row({ icon, label, value, color, link }) {
   )
 }
 
-function EditField({ label, error, children }) {
+function EField({ label, error, children }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
       <label style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -498,7 +438,10 @@ function eInput(error) {
   }
 }
 
-const smallBtn = { padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#6366f1', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }
+const smallBtn = {
+  padding: '10px 16px', borderRadius: '10px', border: 'none',
+  background: '#6366f1', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+}
 
 function LoadingSpinner() {
   return (
