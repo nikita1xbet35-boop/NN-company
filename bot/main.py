@@ -1,13 +1,8 @@
-"""
-NN Company CRM — Railway health server
-Bot logic moved to Vercel API routes (api/telegram.js, api/notify.js)
-"""
+"""NN Company CRM — Railway stub (bot runs on Vercel)"""
 import os
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/")
 async def health():

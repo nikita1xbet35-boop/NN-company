@@ -6,9 +6,36 @@
     <meta name="theme-color" content="#0f0f13" />
     <title>NN Company CRM</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      body { margin: 0; background: #0f0f13; }
+      #loader {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column; gap: 16px;
+        background: #0f0f13; color: #6b7280; font-family: system-ui, sans-serif;
+      }
+      #loader-spinner {
+        width: 36px; height: 36px;
+        border: 3px solid #252535; border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
+    <div id="loader">
+      <div id="loader-spinner"></div>
+      <span style="font-size:13px">Загрузка...</span>
+    </div>
     <div id="root"></div>
+    <script>
+      // Hide loader once React mounts
+      window.__hideLoader = function() {
+        var l = document.getElementById('loader');
+        if (l) l.remove();
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
