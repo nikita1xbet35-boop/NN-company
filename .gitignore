@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+bot/.env
+bot/venv/
+bot/.venv/
+
+# Node / Vite
+mini-app/node_modules/
+mini-app/dist/
+mini-app/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
