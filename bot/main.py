@@ -160,6 +160,17 @@ async def health():
     return {'status': 'ok', 'schedules': 'daily 23:00 / weekly Sun 21:00 / monthly last day 22:00 MSK'}
 
 
+@app.get('/trigger')
+async def trigger(type: str = 'daily'):
+    """Ручной запуск отчёта для теста. ?type=daily|weekly|monthly"""
+    jobs = {'daily': daily_report, 'weekly': weekly_report, 'monthly': monthly_report}
+    fn = jobs.get(type)
+    if not fn:
+        return {'error': f'Unknown type. Use: {list(jobs.keys())}'}
+    await fn()
+    return {'ok': True, 'triggered': type}
+
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run('main:app', host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
