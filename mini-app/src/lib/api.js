@@ -20,10 +20,10 @@ async function notifyBot(payload) {
   }
 }
 
-export function notifyNewLead({ full_name, offer, revenue, payout, added_by }) {
-  return notifyBot({ type: 'new_lead', new_lead: { full_name, offer, revenue, payout, added_by } })
+export function notifyNewLead({ full_name, offer, revenue, payout, added_by, lead_id }) {
+  return notifyBot({ type: 'new_lead', new_lead: { full_name, offer, revenue, payout, added_by, lead_id } })
 }
 
-export function notifyStatusChange({ full_name, offer, new_status, changed_by }) {
-  return notifyBot({ type: 'status_change', status_change: { full_name, offer, new_status, changed_by } })
+export function notifyStatusChange({ full_name, offer, new_status, changed_by, lead_id }) {
+  return notifyBot({ type: 'status_change', status_change: { full_name, offer, new_status, changed_by, lead_id } })
 }

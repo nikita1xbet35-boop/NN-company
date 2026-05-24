@@ -72,6 +72,7 @@ export default function AddLead() {
         revenue:   lead.revenue,
         payout:    lead.payout,
         added_by:  addedBy,
+        lead_id:   lead.id,
       })
 
       haptic('success')

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getLead, updateLeadStatus, updateLeadComment, getStatusHistory, deleteLead } from '../lib/supabase'
+import { getLead, updateLeadStatus, updateLeadComment, updateLead, getStatusHistory, deleteLead } from '../lib/supabase'
 import { notifyStatusChange } from '../lib/api'
-import { STATUSES, STATUS_COLORS, fmtMoney, getDisplayName } from '../lib/config'
+import { STATUSES, STATUS_COLORS, OFFERS, fmtMoney, getDisplayName } from '../lib/config'
 import { getTelegramUser, haptic } from '../lib/telegram'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
@@ -17,9 +17,14 @@ export default function LeadDetail() {
   const [loading, setLoading] = useState(true)
   const [showStatus, setShowStatus]   = useState(false)
   const [showDelete, setShowDelete]   = useState(false)
+  const [showEdit, setShowEdit]       = useState(false)
   const [editComment, setEditComment] = useState(false)
   const [commentVal, setCommentVal]   = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({})
+  const [editErrors, setEditErrors] = useState({})
 
   async function load() {
     try {
@@ -36,6 +41,68 @@ export default function LeadDetail() {
 
   useEffect(() => { load() }, [id])
 
+  function openEdit() {
+    setEditForm({
+      full_name:   lead.full_name   || '',
+      phone:       lead.phone       || '',
+      contact:     lead.contact     || '',
+      offer:       lead.offer       || '',
+      revenue:     lead.revenue     != null ? String(lead.revenue) : '',
+      payout:      lead.payout      != null ? String(lead.payout)  : '',
+      referred_by: lead.referred_by || '',
+      comment:     lead.comment     || '',
+    })
+    setEditErrors({})
+    setShowEdit(true)
+  }
+
+  function setEditField(key, val) {
+    setEditForm(f => ({ ...f, [key]: val }))
+    if (editErrors[key]) setEditErrors(e => ({ ...e, [key]: '' }))
+  }
+
+  function validateEdit() {
+    const e = {}
+    if (!editForm.full_name.trim()) e.full_name = 'Обязательное поле'
+    if (!editForm.phone.trim())     e.phone     = 'Обязательное поле'
+    if (!editForm.contact.trim())   e.contact   = 'Обязательное поле'
+    if (!editForm.offer)            e.offer     = 'Выберите оффер'
+    if (editForm.payout  === '')    e.payout    = 'Введите сумму'
+    if (editForm.revenue === '')    e.revenue   = 'Введите сумму'
+    return e
+  }
+
+  async function saveEdit() {
+    const errs = validateEdit()
+    if (Object.keys(errs).length > 0) {
+      setEditErrors(errs)
+      haptic('error')
+      return
+    }
+    setSaving(true)
+    try {
+      await updateLead(id, {
+        full_name:   editForm.full_name.trim(),
+        phone:       editForm.phone.trim(),
+        contact:     editForm.contact.trim(),
+        offer:       editForm.offer,
+        revenue:     parseFloat(editForm.revenue)     || 0,
+        payout:      parseFloat(editForm.payout)      || 0,
+        referred_by: editForm.referred_by.trim() || null,
+        comment:     editForm.comment.trim()     || null,
+      })
+      haptic('success')
+      setShowEdit(false)
+      await load()
+    } catch (e) {
+      console.error(e)
+      haptic('error')
+      alert('Ошибка при сохранении')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function changeStatus(newStatus) {
     if (newStatus === lead.status) { setShowStatus(false); return }
     setSaving(true)
@@ -43,7 +110,13 @@ export default function LeadDetail() {
       const tgUser    = getTelegramUser()
       const changedBy = tgUser ? getDisplayName(tgUser.username) : 'Неизвестно'
       await updateLeadStatus(id, newStatus, changedBy, lead.status)
-      notifyStatusChange({ full_name: lead.full_name, offer: lead.offer, new_status: newStatus, changed_by: changedBy })
+      notifyStatusChange({
+        full_name:  lead.full_name,
+        offer:      lead.offer,
+        new_status: newStatus,
+        changed_by: changedBy,
+        lead_id:    id,
+      })
       haptic('success')
       await load()
     } catch (e) {
@@ -115,7 +188,17 @@ export default function LeadDetail() {
             color: '#a5b4fc', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
           }}
         >
-          🔄 Изменить статус
+          🔄 Статус
+        </button>
+        <button
+          onClick={openEdit}
+          style={{
+            flex: 1, padding: '13px', borderRadius: '12px',
+            border: '1px solid #374151', background: '#1a1a24',
+            color: '#d1d5db', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          ✏️ Изменить
         </button>
         <button
           onClick={() => setShowDelete(true)}
@@ -241,6 +324,105 @@ export default function LeadDetail() {
         </div>
       </Modal>
 
+      {/* Edit Lead Modal */}
+      <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Редактировать лида">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          <EditField label="ФИО *" error={editErrors.full_name}>
+            <input
+              type="text"
+              value={editForm.full_name || ''}
+              onChange={e => setEditField('full_name', e.target.value)}
+              style={eInput(editErrors.full_name)}
+            />
+          </EditField>
+
+          <EditField label="Телефон *" error={editErrors.phone}>
+            <input
+              type="tel"
+              value={editForm.phone || ''}
+              onChange={e => setEditField('phone', e.target.value)}
+              style={eInput(editErrors.phone)}
+            />
+          </EditField>
+
+          <EditField label="Контакт *" error={editErrors.contact}>
+            <input
+              type="text"
+              value={editForm.contact || ''}
+              onChange={e => setEditField('contact', e.target.value)}
+              style={eInput(editErrors.contact)}
+            />
+          </EditField>
+
+          <EditField label="Оффер *" error={editErrors.offer}>
+            <select
+              value={editForm.offer || ''}
+              onChange={e => setEditField('offer', e.target.value)}
+              style={eInput(editErrors.offer)}
+            >
+              <option value="">Выберите оффер...</option>
+              {OFFERS.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </EditField>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <EditField label="Доход ₽ *" error={editErrors.revenue}>
+              <input
+                type="number"
+                value={editForm.revenue || ''}
+                onChange={e => setEditField('revenue', e.target.value)}
+                min="0"
+                style={eInput(editErrors.revenue)}
+              />
+            </EditField>
+            <EditField label="Выплата ₽ *" error={editErrors.payout}>
+              <input
+                type="number"
+                value={editForm.payout || ''}
+                onChange={e => setEditField('payout', e.target.value)}
+                min="0"
+                style={eInput(editErrors.payout)}
+              />
+            </EditField>
+          </div>
+
+          <EditField label="Кто привёл">
+            <input
+              type="text"
+              value={editForm.referred_by || ''}
+              onChange={e => setEditField('referred_by', e.target.value)}
+              style={eInput()}
+            />
+          </EditField>
+
+          <EditField label="Комментарий">
+            <textarea
+              value={editForm.comment || ''}
+              onChange={e => setEditField('comment', e.target.value)}
+              rows={3}
+              style={{ ...eInput(), resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          </EditField>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+            <button
+              onClick={() => setShowEdit(false)}
+              style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#252535', color: '#9ca3af', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Отмена
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={saving}
+              style={{ flex: 2, padding: '14px', borderRadius: '12px', border: 'none', background: saving ? '#3d3d6b' : '#6366f1', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
+            >
+              {saving ? 'Сохраняем...' : '✅ Сохранить'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Delete Confirm Modal */}
       <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Удалить лида?">
         <p style={{ color: '#9ca3af', fontSize: '14px', lineHeight: 1.5, marginBottom: '20px' }}>
@@ -293,6 +475,27 @@ function Row({ icon, label, value, color, link }) {
       )}
     </div>
   )
+}
+
+function EditField({ label, error, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      <label style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {label}
+      </label>
+      {children}
+      {error && <span style={{ fontSize: '11px', color: '#ef4444' }}>{error}</span>}
+    </div>
+  )
+}
+
+function eInput(error) {
+  return {
+    width: '100%', padding: '11px 12px', borderRadius: '10px',
+    border: `1px solid ${error ? '#ef4444' : '#2a2a3a'}`,
+    background: '#252535', color: '#f1f1f1', fontSize: '14px',
+    boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
+  }
 }
 
 const smallBtn = { padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#6366f1', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }

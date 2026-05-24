@@ -90,6 +90,17 @@ export async function updateLeadComment(id, comment) {
   await PATCH('leads', { id: `eq.${id}` }, { comment })
 }
 
+export async function updateLead(id, data) {
+  const r = await fetch(buildUrl('leads', { id: `eq.${id}` }), {
+    method: 'PATCH',
+    headers: { ...H, 'Prefer': 'return=representation' },
+    body: JSON.stringify(data),
+  })
+  if (!r.ok) throw new Error(await r.text())
+  const text = await r.text()
+  return text ? JSON.parse(text) : null
+}
+
 export async function deleteLead(id) {
   const r = await fetch(`${SB_URL}/leads?id=eq.${id}`, {
     method: 'DELETE',
