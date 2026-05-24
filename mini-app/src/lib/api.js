@@ -1,45 +1,29 @@
 /**
- * Calls the bot's /notify endpoint to send Telegram notifications.
- * Non-blocking — we don't block lead creation on notification failure.
+ * Notifications — calls Vercel API route /api/notify
+ * No external bot server needed
  */
 
-const BOT_URL       = import.meta.env.VITE_BOT_URL || 'https://nn-company-production.up.railway.app'
-const NOTIFY_SECRET = import.meta.env.VITE_NOTIFY_SECRET || 'nn_notify_secret_x9k2p7m4'
+const NOTIFY_SECRET = 'nn_notify_secret_x9k2p7m4'
 
-export async function notifyNewLead({ full_name, offer, revenue, payout, added_by }) {
-  if (!BOT_URL) return
+async function notifyBot(payload) {
   try {
-    await fetch(`${BOT_URL}/notify`, {
-      method: 'POST',
+    await fetch('/api/notify', {
+      method:  'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':    'application/json',
         'X-Notify-Secret': NOTIFY_SECRET,
       },
-      body: JSON.stringify({
-        type: 'new_lead',
-        new_lead: { full_name, offer, revenue, payout, added_by },
-      }),
+      body: JSON.stringify(payload),
     })
   } catch (e) {
     console.warn('Notification failed (non-blocking):', e)
   }
 }
 
-export async function notifyStatusChange({ full_name, offer, new_status, changed_by }) {
-  if (!BOT_URL) return
-  try {
-    await fetch(`${BOT_URL}/notify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Notify-Secret': NOTIFY_SECRET,
-      },
-      body: JSON.stringify({
-        type: 'status_change',
-        status_change: { full_name, offer, new_status, changed_by },
-      }),
-    })
-  } catch (e) {
-    console.warn('Notification failed (non-blocking):', e)
-  }
+export function notifyNewLead({ full_name, offer, revenue, payout, added_by }) {
+  return notifyBot({ type: 'new_lead', new_lead: { full_name, offer, revenue, payout, added_by } })
+}
+
+export function notifyStatusChange({ full_name, offer, new_status, changed_by }) {
+  return notifyBot({ type: 'status_change', status_change: { full_name, offer, new_status, changed_by } })
 }

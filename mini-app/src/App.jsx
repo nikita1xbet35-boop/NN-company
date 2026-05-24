@@ -10,6 +10,8 @@ import LeadDetail from './pages/LeadDetail'
 export default function App() {
   useEffect(() => {
     initTelegram()
+    // Auto-setup Telegram webhook on first load (idempotent, safe to call every time)
+    fetch('/api/setup').catch(() => {})
   }, [])
 
   return (
