@@ -35,20 +35,11 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ─── Config ────────────────────────────────────────────────────────────────────
-BOT_TOKEN     = os.environ.get("BOT_TOKEN", "").strip()
-SUPABASE_URL  = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
-SUPABASE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
-MINI_APP_URL  = os.environ.get("MINI_APP_URL", "https://nn-company-qe1w.vercel.app").strip()
-NOTIFY_SECRET = os.environ.get("NOTIFY_SECRET", "nn_notify_secret_x9k2p7m4").strip()
-
-missing = [k for k, v in {
-    "BOT_TOKEN":            BOT_TOKEN,
-    "SUPABASE_URL":         SUPABASE_URL,
-    "SUPABASE_SERVICE_KEY": SUPABASE_KEY,
-}.items() if not v]
-
-if missing:
-    raise RuntimeError(f"Missing env vars: {', '.join(missing)}")
+BOT_TOKEN     = os.environ.get("BOT_TOKEN",            "8991248806:AAF32CAHc4uKgflpkkFp5ZjdgUMJgIsq2KU").strip()
+SUPABASE_URL  = os.environ.get("SUPABASE_URL",         "https://lkthwgntdaduitqnfvem.supabase.co").strip().rstrip("/")
+SUPABASE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrdGh3Z250ZGFkdWl0cW5mdmVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTYwNjE0NSwiZXhwIjoyMDk1MTgyMTQ1fQ.Z5c2SxOsJz16KW84M8bExALVXJz3tKhkj-nYH6gg_4E").strip()
+MINI_APP_URL  = os.environ.get("MINI_APP_URL",         "https://nn-company-qe1w.vercel.app").strip()
+NOTIFY_SECRET = os.environ.get("NOTIFY_SECRET",        "nn_notify_secret_x9k2p7m4").strip()
 
 log.info(f"Starting bot | MINI_APP_URL={MINI_APP_URL}")
 
