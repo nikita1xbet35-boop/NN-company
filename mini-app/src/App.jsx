@@ -10,9 +10,9 @@ import LeadDetail from './pages/LeadDetail'
 export default function App() {
   useEffect(() => {
     initTelegram()
-    // Hide the HTML loader spinner once React is mounted
-    if (window.__hideLoader) window.__hideLoader()
-    // Auto-register Telegram webhook (idempotent)
+    // Hide splash screen
+    if (window.__ready) window.__ready()
+    // Auto-register Telegram webhook
     fetch('/api/setup').catch(() => {})
   }, [])
 
