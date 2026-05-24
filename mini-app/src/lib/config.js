@@ -32,8 +32,8 @@ export const STATUS_COLORS = {
 
 // ─── User display names ───────────────────────────────────────────────────────
 export const USER_DISPLAY_NAMES = {
-  'tsvetkovnv': 'Босс',
-  'haaaaaaav':  'Тритон',
+  'tsvetkovnv': 'Никитос',
+  'haaaaaaav':  'Хасл',
 }
 
 export function getDisplayName(username) {

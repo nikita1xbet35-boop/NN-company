@@ -4,7 +4,7 @@ const SUPABASE_URL = 'https://lkthwgntdaduitqnfvem.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrdGh3Z250ZGFkdWl0cW5mdmVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTYwNjE0NSwiZXhwIjoyMDk1MTgyMTQ1fQ.Z5c2SxOsJz16KW84M8bExALVXJz3tKhkj-nYH6gg_4E'
 const WEBHOOK_URL  = `${MINI_APP_URL}/api/telegram`
 
-const USER_NAMES = { tsvetkovnv: 'Босс', haaaaaaav: 'Тритон' }
+const USER_NAMES = { tsvetkovnv: 'Никитос', haaaaaaav: 'Хасл' }
 const SB_H = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }
 const TG   = `https://api.telegram.org/bot${BOT_TOKEN}`
 
