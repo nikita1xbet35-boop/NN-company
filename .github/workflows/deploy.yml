@@ -14,10 +14,21 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Link & Deploy
+      - name: Find Vercel project & deploy
         working-directory: mini-app
-        run: |
-          vercel link --yes --token=$VERCEL_TOKEN
-          vercel --prod --token=$VERCEL_TOKEN --yes
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Find project ID from Vercel API
+          PROJECT_ID=$(curl -sf "https://api.vercel.com/v9/projects?limit=100" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" | \
+            python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for p in data.get('projects', []):
+            if 'nn-company' in p.get('name','').lower():
+              print(p['id']); break
+          ")
+
+          echo "Deploying project: $PROJECT_ID"
+          VERCEL_PROJECT_ID=$PROJECT_ID vercel --prod --token=$VERCEL_TOKEN --yes
