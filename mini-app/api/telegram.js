@@ -6,6 +6,11 @@ const WEBHOOK_URL  = `${MINI_APP_URL}/api/telegram`
 
 const USER_NAMES    = { tsvetkovnv: 'Никитос', haaaaaaav: 'Хасл' }
 const ALLOWED_USERS = ['tsvetkovnv', 'haaaaaaav']
+const NOTIFY_SECRET = 'nn_notify_secret_x9k2p7m4'
+
+function getDisplayName(username) {
+  return USER_NAMES[username] || username || 'Администратор'
+}
 
 const REJECT_MSGS = [
   '🚫 Закрытый клуб, братан. Тебя не звали.',
@@ -167,7 +172,53 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true })
 
   try {
-    const update  = req.body
+    const update = req.body
+
+    // ── Callback query (inline buttons) ──────────────────────────────────────
+    const callback = update?.callback_query
+    if (callback) {
+      const data     = callback.data || ''
+      const from     = callback.from
+      const username = (from.username || '').toLowerCase()
+
+      if (!ALLOWED_USERS.includes(username)) {
+        await tg('answerCallbackQuery', { callback_query_id: callback.id, text: 'Нет доступа' })
+        return res.json({ ok: true })
+      }
+
+      if (data.startsWith('pa:')) {
+        const plid = data.slice(3)
+        await fetch(`${MINI_APP_URL}/api/partner-approve`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Notify-Secret': NOTIFY_SECRET },
+          body:    JSON.stringify({ action: 'approve', partner_lead_id: plid, reviewer: getDisplayName(username) }),
+        })
+        await tg('answerCallbackQuery', { callback_query_id: callback.id, text: '✅ Одобрено!' })
+        await tg('editMessageReplyMarkup', {
+          chat_id:     callback.message.chat.id,
+          message_id:  callback.message.message_id,
+          reply_markup: { inline_keyboard: [] },
+        })
+      }
+
+      if (data.startsWith('pr:')) {
+        const plid = data.slice(3)
+        await fetch(`${MINI_APP_URL}/api/partner-approve`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Notify-Secret': NOTIFY_SECRET },
+          body:    JSON.stringify({ action: 'reject', partner_lead_id: plid, reviewer: getDisplayName(username) }),
+        })
+        await tg('answerCallbackQuery', { callback_query_id: callback.id, text: '❌ Отклонено' })
+        await tg('editMessageReplyMarkup', {
+          chat_id:     callback.message.chat.id,
+          message_id:  callback.message.message_id,
+          reply_markup: { inline_keyboard: [] },
+        })
+      }
+
+      return res.json({ ok: true })
+    }
+
     const message = update?.message
     if (!message) return res.json({ ok: true })
 

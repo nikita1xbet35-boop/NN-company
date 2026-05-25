@@ -2,14 +2,18 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { haptic } from '../lib/telegram'
 
 const TABS = [
-  { path: '/',      icon: '📊', label: 'Дашборд' },
-  { path: '/leads', icon: '📋', label: 'Лиды'    },
-  { path: '/add',   icon: '➕', label: 'Добавить' },
+  { path: '/',          icon: '📊', label: 'Дашборд'  },
+  { path: '/leads',     icon: '📋', label: 'Лиды'     },
+  { path: '/add',       icon: '➕', label: 'Добавить'  },
+  { path: '/partners',  icon: '🤝', label: 'Партнёры' },
 ]
 
 export default function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
+
+  // Hide on partner routes
+  if (location.pathname.startsWith('/partner')) return null
 
   function go(path) {
     haptic('light')
@@ -30,7 +34,9 @@ export default function BottomNav() {
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
       {TABS.map(tab => {
-        const active = location.pathname === tab.path
+        const active = tab.path === '/'
+          ? location.pathname === '/'
+          : location.pathname.startsWith(tab.path)
         return (
           <button
             key={tab.path}
@@ -47,6 +53,7 @@ export default function BottomNav() {
               cursor:         'pointer',
               color:          active ? '#6366f1' : '#6b7280',
               transition:     'color 0.2s',
+              position:       'relative',
             }}
           >
             <span style={{ fontSize: '20px', lineHeight: 1 }}>{tab.icon}</span>
