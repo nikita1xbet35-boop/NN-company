@@ -3,6 +3,7 @@ name: Deploy to Vercel
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -10,11 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Vercel
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Link & Deploy
+        working-directory: mini-app
+        run: |
+          vercel link --yes --token=$VERCEL_TOKEN
+          vercel --prod --token=$VERCEL_TOKEN --yes
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          cd mini-app
-          npx vercel --prod --token=$VERCEL_TOKEN --yes
