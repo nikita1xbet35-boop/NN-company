@@ -4,7 +4,8 @@ const SUPABASE_URL = 'https://lkthwgntdaduitqnfvem.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrdGh3Z250ZGFkdWl0cW5mdmVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTYwNjE0NSwiZXhwIjoyMDk1MTgyMTQ1fQ.Z5c2SxOsJz16KW84M8bExALVXJz3tKhkj-nYH6gg_4E'
 const WEBHOOK_URL  = `${MINI_APP_URL}/api/telegram`
 
-const USER_NAMES = { tsvetkovnv: 'Никитос', haaaaaaav: 'Хасл' }
+const USER_NAMES    = { tsvetkovnv: 'Никитос', haaaaaaav: 'Хасл' }
+const ALLOWED_USERS = ['tsvetkovnv', 'haaaaaaav']
 const SB_H = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }
 const TG   = `https://api.telegram.org/bot${BOT_TOKEN}`
 
@@ -158,8 +159,19 @@ module.exports = async function handler(req, res) {
     const message = update?.message
     if (!message) return res.json({ ok: true })
 
-    const text = (message.text || '').split(' ')[0].toLowerCase() // берём первое слово (команду)
-    const user = message.from
+    const text     = (message.text || '').split(' ')[0].toLowerCase()
+    const user     = message.from
+    const username = (user.username || '').toLowerCase()
+
+    // ── Проверка доступа ──────────────────────────────────────────────────────
+    if (!ALLOWED_USERS.includes(username)) {
+      await tg('sendMessage', {
+        chat_id:    user.id,
+        parse_mode: 'HTML',
+        text:       '⛔️ <b>Нет доступа</b>\n\nЭтот бот только для своих.',
+      })
+      return res.json({ ok: true })
+    }
 
     // /start или /app
     if (text === '/start' || text === '/app') {
