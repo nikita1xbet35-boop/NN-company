@@ -1,4 +1,4 @@
-const { verifyInitData, getPartner, PARTNER_BOT_TOKEN, SUPABASE_URL, SB_H } = require('./lib/partnerAuth')
+const { verifyInitData, getPartner, PARTNER_BOT_TOKEN, SUPABASE_URL, SB_H } = require('./_lib/partnerAuth')
 
 const MINI_APP_URL  = 'https://nn-company-qe1w.vercel.app'
 const MAIN_BOT_TOKEN = '8991248806:AAF32CAHc4uKgflpkkFp5ZjdgUMJgIsq2KU'

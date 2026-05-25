@@ -1,4 +1,4 @@
-const { verifyInitData, getPartner, isAdmin, PARTNER_BOT_TOKEN, MAIN_BOT_TOKEN, SUPABASE_URL, SB_H } = require('./lib/partnerAuth')
+const { verifyInitData, getPartner, isAdmin, PARTNER_BOT_TOKEN, MAIN_BOT_TOKEN, SUPABASE_URL, SB_H } = require('./_lib/partnerAuth')
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*')

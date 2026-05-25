@@ -1,4 +1,4 @@
-const { PARTNER_BOT_TOKEN, SUPABASE_URL, SB_H } = require('./lib/partnerAuth')
+const { PARTNER_BOT_TOKEN, SUPABASE_URL, SB_H } = require('./_lib/partnerAuth')
 
 const NOTIFY_SECRET  = 'nn_notify_secret_x9k2p7m4'
 const PARTNER_TG     = `https://api.telegram.org/bot${PARTNER_BOT_TOKEN}`
