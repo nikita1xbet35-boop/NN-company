@@ -11,32 +11,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug — token check & project list
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          echo "Token starts with: ${VERCEL_TOKEN:0:10}..."
-          echo "--- Vercel projects ---"
-          curl -s "https://api.vercel.com/v9/projects?limit=20" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" | \
-            python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          if 'error' in data:
-            print('API ERROR:', data['error'])
-          else:
-            for p in data.get('projects', []):
-              print(p['id'], p['name'])
-          "
-
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Deploy
+      - name: Deploy to Vercel
         working-directory: mini-app
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
+          # Get org ID (user ID for personal accounts)
+          ORG_ID=$(curl -s "https://api.vercel.com/v2/user" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); print(d['user']['id'])")
+
+          # Get project ID
           PROJECT_ID=$(curl -s "https://api.vercel.com/v9/projects?limit=20" \
             -H "Authorization: Bearer $VERCEL_TOKEN" | \
             python3 -c "
@@ -46,5 +34,7 @@ jobs:
             if 'nn-company' in p.get('name','').lower():
               print(p['id']); break
           ")
-          echo "Project ID: [$PROJECT_ID]"
-          VERCEL_PROJECT_ID=$PROJECT_ID vercel --prod --token=$VERCEL_TOKEN --yes
+
+          echo "Org: $ORG_ID  Project: $PROJECT_ID"
+          VERCEL_ORG_ID=$ORG_ID VERCEL_PROJECT_ID=$PROJECT_ID \
+            vercel --prod --token=$VERCEL_TOKEN --yes
