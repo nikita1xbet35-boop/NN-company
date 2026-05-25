@@ -119,9 +119,14 @@ export default function Dashboard() {
     <div style={{ padding: '16px', paddingBottom: '80px' }}>
 
       {/* Заголовок */}
-      <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f1f1f1', marginBottom: '20px' }}>
-        Дашборд
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f1f1f1', margin: 0 }}>
+          Дашборд
+        </h1>
+        <span style={{ fontSize: '10px', color: '#374151', background: '#1a1a24', padding: '2px 8px', borderRadius: '20px', fontWeight: 600 }}>
+          v1.1
+        </span>
+      </div>
 
       {/* Выбор периода */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
