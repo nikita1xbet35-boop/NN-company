@@ -6,6 +6,15 @@ const WEBHOOK_URL  = `${MINI_APP_URL}/api/telegram`
 
 const USER_NAMES    = { tsvetkovnv: 'Никитос', haaaaaaav: 'Хасл' }
 const ALLOWED_USERS = ['tsvetkovnv', 'haaaaaaav']
+
+const REJECT_MSGS = [
+  '🚫 Закрытый клуб, братан. Тебя не звали.',
+  '⛔️ Эй. Это не твой бот. Иди своей дорогой 👋',
+  '🙅 Доступ закрыт. Нет, это не ошибка.',
+  '😐 Нет. Просто нет.',
+  '🔒 Частная собственность. Проходи мимо.',
+  '👮 Стоп. Дальше не пройдёшь. Удачи в жизни 👋',
+]
 const SB_H = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }
 const TG   = `https://api.telegram.org/bot${BOT_TOKEN}`
 
@@ -74,7 +83,10 @@ function buildReport(leads, title) {
 }
 
 async function getUsers() {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/telegram_users?select=id`, { headers: SB_H })
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/telegram_users?select=id&username=in.(tsvetkovnv,haaaaaaav)`,
+    { headers: SB_H }
+  )
   const data = await r.json()
   return Array.isArray(data) ? data.map(row => row.id) : []
 }
@@ -165,11 +177,16 @@ module.exports = async function handler(req, res) {
 
     // ── Проверка доступа ──────────────────────────────────────────────────────
     if (!ALLOWED_USERS.includes(username)) {
-      await tg('sendMessage', {
-        chat_id:    user.id,
-        parse_mode: 'HTML',
-        text:       '⛔️ <b>Нет доступа</b>\n\nЭтот бот только для своих.',
-      })
+      const rejects = [
+        '🚫 Закрытый клуб, братан. Тебя не звали. Удачи в жизни 👋',
+        '⛔️ Эй. Это не твой бот. Проходи мимо, не задерживайся.',
+        '🙅 Доступа нет. Нет, это не баг. Нет, не пиши ещё раз.',
+        '😐 Нет. Просто нет. Иди.',
+        '🔒 Частная собственность. Посторонним вход воспрещён.',
+        '👮 Стоп. Дальше не пройдёшь. Это не публичный бот 👋',
+      ]
+      const msg = rejects[Math.floor(Math.random() * rejects.length)]
+      await tg('sendMessage', { chat_id: user.id, text: msg })
       return res.json({ ok: true })
     }
 

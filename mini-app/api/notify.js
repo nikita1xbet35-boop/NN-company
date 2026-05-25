@@ -19,9 +19,10 @@ function leadButton(lead_id) {
 }
 
 async function getUserIds() {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/telegram_users?select=id`, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-  })
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/telegram_users?select=id&username=in.(tsvetkovnv,haaaaaaav)`,
+    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  )
   const data = await r.json()
   return Array.isArray(data) ? data.map(row => row.id) : []
 }

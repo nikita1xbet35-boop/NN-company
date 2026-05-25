@@ -117,7 +117,10 @@ def fmt(n):
 
 async def get_users():
     async with httpx.AsyncClient(timeout=10) as c:
-        r = await c.get(f'{SUPABASE_URL}/rest/v1/telegram_users?select=id', headers=SB_H)
+        r = await c.get(
+            f'{SUPABASE_URL}/rest/v1/telegram_users?select=id&username=in.(tsvetkovnv,haaaaaaav)',
+            headers=SB_H,
+        )
         return [row['id'] for row in (r.json() if r.is_success else [])]
 
 
