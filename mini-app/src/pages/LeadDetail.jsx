@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getLead, updateLeadStatus, updateLeadComment, updateLead, getStatusHistory, deleteLead } from '../lib/supabase'
+import { getLead, updateLeadStatus, updateLeadComment, updateLead, getStatusHistory, deleteLead, unlinkPartnerLead } from '../lib/supabase'
 import { notifyStatusChange, notifyLeadEdited, notifyLeadDeleted, notifyCommentChanged } from '../lib/api'
 import { STATUSES, STATUS_COLORS, OFFERS, fmtMoney, getDisplayName } from '../lib/config'
 import { getTelegramUser, haptic } from '../lib/telegram'
@@ -144,6 +144,8 @@ export default function LeadDetail() {
       const deletedBy  = getUser()
       const savedName  = lead.full_name
       await deleteLead(id)
+      // Reset partner lead so partner's earnings are corrected
+      unlinkPartnerLead(id).catch(e => console.error('unlink partner lead error:', e))
       notifyLeadDeleted({ full_name: savedName, deleted_by: deletedBy })
       haptic('success')
       navigate('/leads')

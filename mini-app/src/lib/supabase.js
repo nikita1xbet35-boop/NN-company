@@ -109,6 +109,23 @@ export async function deleteLead(id) {
   if (!r.ok) throw new Error(await r.text())
 }
 
+// When a CRM lead is deleted, unlink any partner lead pointing to it
+// so the partner's earned amount is correctly reset to 0 for that lead
+export async function unlinkPartnerLead(crmLeadId) {
+  const SB_KEY_SVC = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrdGh3Z250ZGFkdWl0cW5mdmVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTYwNjE0NSwiZXhwIjoyMDk1MTgyMTQ1fQ.Z5c2SxOsJz16KW84M8bExALVXJz3tKhkj-nYH6gg_4E'
+  const H_SVC = {
+    'apikey':        SB_KEY_SVC,
+    'Authorization': `Bearer ${SB_KEY_SVC}`,
+    'Content-Type':  'application/json',
+  }
+  const r = await fetch(`${SB_URL}/partner_leads?crm_lead_id=eq.${crmLeadId}`, {
+    method:  'PATCH',
+    headers: { ...H_SVC, 'Prefer': 'return=minimal' },
+    body:    JSON.stringify({ crm_lead_id: null, approval_status: 'pending' }),
+  })
+  if (!r.ok) console.error('unlinkPartnerLead error:', await r.text())
+}
+
 export async function getStatusHistory(leadId) {
   return GET('status_history', {
     select: '*', lead_id: `eq.${leadId}`, order: 'changed_at.desc',

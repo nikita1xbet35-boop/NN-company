@@ -2,6 +2,8 @@ const { PARTNER_BOT_TOKEN, SUPABASE_URL, SB_H } = require('./_lib/partnerAuth')
 
 const NOTIFY_SECRET  = 'nn_notify_secret_x9k2p7m4'
 const PARTNER_TG     = `https://api.telegram.org/bot${PARTNER_BOT_TOKEN}`
+const MAIN_BOT_TOKEN = '8991248806:AAF32CAHc4uKgflpkkFp5ZjdgUMJgIsq2KU'
+const MAIN_TG        = `https://api.telegram.org/bot${MAIN_BOT_TOKEN}`
 
 function fmt(n) {
   return `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ₽`
@@ -14,6 +16,18 @@ async function notifyPartner(telegramId, text) {
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ chat_id: telegramId, parse_mode: 'HTML', text }),
   })
+}
+
+// Remove inline keyboard buttons from all stored admin Telegram messages
+async function clearTgButtons(tgMsgIds) {
+  if (!Array.isArray(tgMsgIds) || tgMsgIds.length === 0) return
+  await Promise.allSettled(tgMsgIds.map(({ chat_id, message_id }) =>
+    fetch(`${MAIN_TG}/editMessageReplyMarkup`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ chat_id, message_id, reply_markup: { inline_keyboard: [] } }),
+    })
+  ))
 }
 
 module.exports = async function handler(req, res) {
@@ -55,6 +69,12 @@ module.exports = async function handler(req, res) {
     const partner  = Array.isArray(partners) && partners.length > 0 ? partners[0] : null
 
     if (action === 'approve') {
+      // ── Idempotency: already approved → just clear buttons and return ────────
+      if (partnerLead.approval_status === 'approved') {
+        clearTgButtons(partnerLead.tg_msg_ids).catch(() => {})
+        return res.status(200).json({ ok: true, action: 'already_approved', crm_lead_id: partnerLead.crm_lead_id })
+      }
+
       // Create CRM lead
       const crmLeadBody = {
         full_name: partnerLead.full_name,
@@ -89,19 +109,28 @@ module.exports = async function handler(req, res) {
         }
       )
 
-      // Notify partner
+      // Clear Telegram admin message buttons (non-blocking)
+      clearTgButtons(partnerLead.tg_msg_ids).catch(() => {})
+
+      // Notify partner (non-blocking)
       if (partner?.telegram_id) {
-        await notifyPartner(
+        notifyPartner(
           partner.telegram_id,
           `🎉 Твой лид <b>${partnerLead.full_name}</b> одобрен! В работе.\n\n` +
           `💰 К выплате: <b>${fmt(partnerLead.payout_to_partner)}</b>`
-        )
+        ).catch(() => {})
       }
 
       return res.status(200).json({ ok: true, action: 'approved', crm_lead_id: crmLead?.id })
     }
 
     if (action === 'reject') {
+      // ── Idempotency: already rejected → just clear buttons and return ────────
+      if (partnerLead.approval_status === 'rejected') {
+        clearTgButtons(partnerLead.tg_msg_ids).catch(() => {})
+        return res.status(200).json({ ok: true, action: 'already_rejected' })
+      }
+
       await fetch(
         `${SUPABASE_URL}/rest/v1/partner_leads?id=eq.${partner_lead_id}`,
         {
@@ -116,13 +145,16 @@ module.exports = async function handler(req, res) {
         }
       )
 
-      // Notify partner
+      // Clear Telegram admin message buttons (non-blocking)
+      clearTgButtons(partnerLead.tg_msg_ids).catch(() => {})
+
+      // Notify partner (non-blocking)
       if (partner?.telegram_id) {
         const reason = rejection_reason ? `\n\n📌 Причина: ${rejection_reason}` : ''
-        await notifyPartner(
+        notifyPartner(
           partner.telegram_id,
           `😔 Лид <b>${partnerLead.full_name}</b> отклонён.${reason}`
-        )
+        ).catch(() => {})
       }
 
       return res.status(200).json({ ok: true, action: 'rejected' })
