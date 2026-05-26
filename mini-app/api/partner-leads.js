@@ -19,13 +19,15 @@ async function getAdminIds() {
 
 async function notifyAdmins(partnerLead, partnerName) {
   const ids = await getAdminIds()
-  await Promise.allSettled(ids.map(id =>
+
+  // Send messages and capture message_id from each response
+  const results = await Promise.allSettled(ids.map(chat_id =>
     fetch(`${MAIN_TG}/sendMessage`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
-        chat_id:      id,
-        parse_mode:   'HTML',
+        chat_id,
+        parse_mode: 'HTML',
         text:
           `🤝 <b>Новый лид от партнёра</b>\n\n` +
           `👤 Лид: <b>${partnerLead.full_name}</b>\n` +
@@ -41,7 +43,22 @@ async function notifyAdmins(partnerLead, partnerName) {
         },
       }),
     })
+    .then(r => r.json())
+    .then(d => (d.ok && d.result?.message_id ? { chat_id, message_id: d.result.message_id } : null))
   ))
+
+  // Store message IDs so partner-approve can clear buttons later
+  const tgMsgIds = results
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value)
+
+  if (tgMsgIds.length > 0) {
+    fetch(`${SUPABASE_URL}/rest/v1/partner_leads?id=eq.${partnerLead.id}`, {
+      method:  'PATCH',
+      headers: { ...SB_H, 'Prefer': 'return=minimal' },
+      body:    JSON.stringify({ tg_msg_ids: tgMsgIds }),
+    }).catch(e => console.error('store tg_msg_ids error:', e))
+  }
 }
 
 async function getRate(partnerId, offerName) {
@@ -148,7 +165,7 @@ module.exports = async function handler(req, res) {
       }
       const newLead = inserted[0]
 
-      // Notify admins (non-blocking)
+      // Notify admins (non-blocking) — also stores tg_msg_ids
       notifyAdmins(newLead, partner.display_name).catch(e => console.error('notify admins error:', e))
 
       return res.status(200).json({ ok: true, lead: newLead })
