@@ -5,7 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Project IDs are not secrets — safe to hardcode (same as .vercel/project.json)
 env:
   VERCEL_ORG_ID: Ba6v97eyJ8FzoI1hh1oPchnN
   VERCEL_PROJECT_ID: prj_Eka47eKPNI0oYW72OaNmI7EAgVK4
@@ -19,6 +18,10 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
+
+      - name: Pull project settings
+        working-directory: mini-app
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build
         working-directory: mini-app
