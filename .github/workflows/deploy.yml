@@ -5,36 +5,25 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Project IDs are not secrets — safe to hardcode (same as .vercel/project.json)
+env:
+  VERCEL_ORG_ID: Ba6v97eyJ8FzoI1hh1oPchnN
+  VERCEL_PROJECT_ID: prj_Eka47eKPNI0oYW72OaNmI7EAgVK4
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Deploy to Vercel
+      - name: Build
         working-directory: mini-app
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          # Get org ID (user ID for personal accounts)
-          ORG_ID=$(curl -s "https://api.vercel.com/v2/user" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" | \
-            python3 -c "import sys,json; d=json.load(sys.stdin); print(d['user']['id'])")
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-          # Get project ID
-          PROJECT_ID=$(curl -s "https://api.vercel.com/v9/projects?limit=20" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" | \
-            python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          for p in data.get('projects', []):
-            if 'nn-company' in p.get('name','').lower():
-              print(p['id']); break
-          ")
-
-          echo "Org: $ORG_ID  Project: $PROJECT_ID"
-          VERCEL_ORG_ID=$ORG_ID VERCEL_PROJECT_ID=$PROJECT_ID \
-            vercel --prod --token=$VERCEL_TOKEN --yes
+      - name: Deploy prebuilt
+        working-directory: mini-app
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
