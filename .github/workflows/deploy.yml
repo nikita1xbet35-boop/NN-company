@@ -40,4 +40,11 @@ jobs:
 
       - name: Deploy prebuilt
         working-directory: mini-app
-        run: vercel deploy --prebuilt --prod --archive=tgz --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Upload to Vercel and exit after 90s — Vercel builds in background
+          timeout 90 vercel deploy --prebuilt --prod --archive=tgz \
+            --token=${{ secrets.VERCEL_TOKEN }} | tee /tmp/deploy.log || true
+          cat /tmp/deploy.log
+          grep -q "Production\|vercel.app" /tmp/deploy.log \
+            && echo "✅ Uploaded to Vercel — building in background" \
+            || (echo "❌ Upload failed" && exit 1)
