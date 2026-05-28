@@ -5,6 +5,7 @@ const TABS = [
   { path: '/',          icon: '📊', label: 'Дашборд'  },
   { path: '/leads',     icon: '📋', label: 'Лиды'     },
   { path: '/add',       icon: '➕', label: 'Добавить'  },
+  { path: '/tasks',     icon: '✅', label: 'Задачи'   },
   { path: '/partners',  icon: '🤝', label: 'Партнёры' },
 ]
 

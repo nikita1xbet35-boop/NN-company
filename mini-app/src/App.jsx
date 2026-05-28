@@ -9,6 +9,8 @@ import LeadDetail from './pages/LeadDetail'
 import Partners from './pages/Partners'
 import PartnerCard from './pages/PartnerCard'
 import PartnerApp from './pages/partner/PartnerApp'
+import Tasks from './pages/Tasks'
+import TaskDetail from './pages/TaskDetail'
 
 export default function App() {
   const location = useLocation()
@@ -27,6 +29,8 @@ export default function App() {
         <Route path="/leads"         element={<Leads />} />
         <Route path="/leads/:id"     element={<LeadDetail />} />
         <Route path="/add"           element={<AddLead />} />
+        <Route path="/tasks"         element={<Tasks />} />
+        <Route path="/tasks/:id"     element={<TaskDetail />} />
         <Route path="/partners"      element={<Partners />} />
         <Route path="/partners/:id"  element={<PartnerCard />} />
         <Route path="/partner/*"     element={<PartnerApp />} />
