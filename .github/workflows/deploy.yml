@@ -41,10 +41,10 @@ jobs:
       - name: Deploy prebuilt
         working-directory: mini-app
         run: |
-          # Upload to Vercel and exit after 90s — Vercel builds in background
-          timeout 90 vercel deploy --prebuilt --prod --archive=tgz \
-            --token=${{ secrets.VERCEL_TOKEN }} | tee /tmp/deploy.log || true
+          # Use SIGKILL so CLI can't cancel deployment on exit
+          timeout -s KILL 120 vercel deploy --prebuilt --prod --archive=tgz \
+            --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tee /tmp/deploy.log || true
           cat /tmp/deploy.log
-          grep -q "Production\|vercel.app" /tmp/deploy.log \
-            && echo "✅ Uploaded to Vercel — building in background" \
-            || (echo "❌ Upload failed" && exit 1)
+          grep -q "vercel.app\|Production\|Inspect" /tmp/deploy.log \
+            && echo "✅ Deployment submitted to Vercel" \
+            || (echo "❌ Upload failed — no deployment URL found" && exit 1)
