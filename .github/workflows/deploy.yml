@@ -36,7 +36,7 @@ jobs:
 
       - name: Build (local)
         working-directory: mini-app
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy prebuilt
         working-directory: mini-app
